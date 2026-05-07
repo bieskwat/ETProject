@@ -5,16 +5,19 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+// Entry point aplikasi Flutter.
 void main() {
   runApp(const MyApp());
 }
 
+// Key SharedPreferences dan konfigurasi utama permainan.
 const String _usernameKey = 'memorimage_username';
 const String _highScoresKey = 'memorimage_high_scores';
 const int _roundsPerGame = 5;
 const int _memorizeSeconds = 3;
 const int _answerSeconds = 30;
 
+// Root aplikasi: mengatur session user dan screen awal.
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
@@ -32,6 +35,7 @@ class _MyAppState extends State<MyApp> {
     _loadSession();
   }
 
+  // SharedPreferences: membaca username yang tersimpan saat app dibuka.
   Future<void> _loadSession() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) {
@@ -44,6 +48,7 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
+  // SharedPreferences: menyimpan username agar user tetap login.
   Future<void> _login(String username) async {
     final prefs = await SharedPreferences.getInstance();
     final cleanedUsername = username.trim();
@@ -58,6 +63,7 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
+  // SharedPreferences: menghapus username saat user logout.
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_usernameKey);
@@ -86,6 +92,7 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
+// Theme aplikasi: warna, AppBar, button, dan input field.
 ThemeData _buildTheme() {
   final colorScheme =
       ColorScheme.fromSeed(
@@ -132,6 +139,7 @@ ThemeData _buildTheme() {
   );
 }
 
+// Loading screen sementara saat app membaca session dari storage.
 class LoadingScreen extends StatelessWidget {
   const LoadingScreen({super.key});
 
@@ -141,6 +149,7 @@ class LoadingScreen extends StatelessWidget {
   }
 }
 
+// Login screen: meminta username sebelum user masuk ke main menu.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({required this.onLogin, super.key});
 
@@ -161,6 +170,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  // Validasi form login lalu panggil callback untuk menyimpan username.
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -270,6 +280,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
+// Main menu: halaman utama setelah login.
 class MainMenuScreen extends StatelessWidget {
   const MainMenuScreen({
     required this.username,
@@ -361,6 +372,7 @@ class MainMenuScreen extends StatelessWidget {
   }
 }
 
+// Drawer: menampilkan username, high score, dan logout.
 class _MainDrawer extends StatelessWidget {
   const _MainDrawer({required this.username, required this.onLogout});
 
@@ -431,6 +443,7 @@ class _MainDrawer extends StatelessWidget {
   }
 }
 
+// Komponen informasi kecil di main menu.
 class _InfoStrip extends StatelessWidget {
   const _InfoStrip({
     required this.icon,
@@ -477,6 +490,7 @@ class _InfoStrip extends StatelessWidget {
   }
 }
 
+// GameScreen: mengatur seluruh alur permainan, timer, soal, dan skor.
 class GameScreen extends StatefulWidget {
   const GameScreen({required this.username, super.key});
 
@@ -486,13 +500,17 @@ class GameScreen extends StatefulWidget {
   State<GameScreen> createState() => _GameScreenState();
 }
 
+// Phase game: preparing, menampilkan gambar, lalu menjawab soal.
 enum GamePhase { preparing, memorizing, answering }
 
 class _GameScreenState extends State<GameScreen> {
   final Random _random = Random();
+
+  // Target dan opsi jawaban untuk ronde game saat ini.
   late final List<GameItem> _targets;
   List<GameItem> _options = const [];
 
+  // State utama permainan.
   GamePhase _phase = GamePhase.preparing;
   int _sequenceIndex = 0;
   int _questionIndex = 0;
@@ -500,9 +518,12 @@ class _GameScreenState extends State<GameScreen> {
   int _answerSecondsLeft = _answerSeconds;
   int _score = 0;
   int _correctAnswers = 0;
+
+  // Lock jawaban agar user tidak bisa klik berkali-kali.
   bool _answerLocked = false;
   String? _selectedOptionId;
 
+  // Timer untuk fase hafalan, fase jawaban, dan jeda antar soal.
   Timer? _sequenceTimer;
   Timer? _questionTimer;
   Timer? _transitionTimer;
@@ -512,6 +533,7 @@ class _GameScreenState extends State<GameScreen> {
     super.initState();
     _targets = _buildTargets();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Mulai fase hafalan setelah frame pertama selesai dibuat.
       if (mounted) {
         _showMemoryImage(0);
       }
@@ -520,12 +542,14 @@ class _GameScreenState extends State<GameScreen> {
 
   @override
   void dispose() {
+    // Semua timer dibatalkan agar tidak memanggil setState setelah screen hilang.
     _sequenceTimer?.cancel();
     _questionTimer?.cancel();
     _transitionTimer?.cancel();
     super.dispose();
   }
 
+  // Random target: pilih kategori acak lalu ambil satu gambar dari tiap kategori.
   List<GameItem> _buildTargets() {
     final categories = kGameItems.map((item) => item.category).toSet().toList()
       ..shuffle(_random);
@@ -538,6 +562,7 @@ class _GameScreenState extends State<GameScreen> {
     }).toList();
   }
 
+  // Opsi jawaban: semua gambar dengan kategori yang sama agar pilihan mirip.
   List<GameItem> _buildOptions(GameItem target) {
     final options =
         kGameItems.where((item) => item.category == target.category).toList()
@@ -545,6 +570,7 @@ class _GameScreenState extends State<GameScreen> {
     return options;
   }
 
+  // Fase hafalan: tampilkan satu gambar selama beberapa detik.
   void _showMemoryImage(int index) {
     _sequenceTimer?.cancel();
     _questionTimer?.cancel();
@@ -560,6 +586,7 @@ class _GameScreenState extends State<GameScreen> {
       _sequenceSecondsLeft = _memorizeSeconds;
     });
 
+    // Timer countdown untuk berpindah otomatis ke gambar berikutnya.
     _sequenceTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) {
         timer.cancel();
@@ -577,6 +604,7 @@ class _GameScreenState extends State<GameScreen> {
     });
   }
 
+  // Fase soal: tampilkan opsi jawaban dan mulai timer 30 detik.
   void _startQuestion(int index) {
     _sequenceTimer?.cancel();
     _questionTimer?.cancel();
@@ -596,6 +624,7 @@ class _GameScreenState extends State<GameScreen> {
       _selectedOptionId = null;
     });
 
+    // Timer countdown jawaban; jika habis, soal dianggap timeout.
     _questionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) {
         timer.cancel();
@@ -613,6 +642,7 @@ class _GameScreenState extends State<GameScreen> {
     });
   }
 
+  // Proses klik jawaban: cek benar/salah, update skor, lalu lanjut soal.
   void _selectOption(GameItem option) {
     if (_answerLocked) {
       return;
@@ -634,6 +664,7 @@ class _GameScreenState extends State<GameScreen> {
     _queueNextQuestion();
   }
 
+  // Timeout: user tidak memilih sampai timer habis.
   void _timeoutQuestion() {
     if (_answerLocked) {
       return;
@@ -648,6 +679,7 @@ class _GameScreenState extends State<GameScreen> {
     _queueNextQuestion();
   }
 
+  // Jeda singkat agar user sempat melihat indikator benar/salah.
   void _queueNextQuestion() {
     _transitionTimer?.cancel();
     _transitionTimer = Timer(const Duration(milliseconds: 750), () {
@@ -657,6 +689,7 @@ class _GameScreenState extends State<GameScreen> {
     });
   }
 
+  // Akhiri game dan pindah ke result screen.
   void _finishGame() {
     _sequenceTimer?.cancel();
     _questionTimer?.cancel();
@@ -699,6 +732,7 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
+  // Tampilan fase hafalan.
   Widget _buildMemoryView(BuildContext context) {
     final target = _targets[_sequenceIndex];
 
@@ -741,6 +775,7 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
+  // Tampilan fase pertanyaan dan pilihan jawaban.
   Widget _buildQuestionView(BuildContext context) {
     final target = _targets[_questionIndex];
 
@@ -808,6 +843,7 @@ class _GameScreenState extends State<GameScreen> {
   }
 }
 
+// Status bar game: phase, progress, dan skor.
 class _GameStatusBar extends StatelessWidget {
   const _GameStatusBar({
     required this.leadingLabel,
@@ -834,6 +870,7 @@ class _GameStatusBar extends StatelessWidget {
   }
 }
 
+// Komponen label status berbentuk pill.
 class _StatusPill extends StatelessWidget {
   const _StatusPill({required this.icon, required this.label});
 
@@ -863,6 +900,7 @@ class _StatusPill extends StatelessWidget {
   }
 }
 
+// Timer UI: berubah warna saat waktu hampir habis.
 class _TimerPill extends StatelessWidget {
   const _TimerPill({required this.secondsLeft});
 
@@ -903,6 +941,7 @@ class _TimerPill extends StatelessWidget {
   }
 }
 
+// Card gambar pada fase hafalan.
 class _MemoryImageCard extends StatelessWidget {
   const _MemoryImageCard({
     required this.item,
@@ -971,6 +1010,7 @@ class _MemoryImageCard extends StatelessWidget {
   }
 }
 
+// Tile pilihan jawaban: menampilkan border hijau/merah setelah dikunci.
 class _OptionTile extends StatelessWidget {
   const _OptionTile({
     required this.item,
@@ -1050,6 +1090,7 @@ class _OptionTile extends StatelessWidget {
   }
 }
 
+// Result screen: menampilkan skor, gelar, dan tombol navigasi setelah game.
 class ResultScreen extends StatefulWidget {
   const ResultScreen({
     required this.username,
@@ -1074,6 +1115,7 @@ class _ResultScreenState extends State<ResultScreen> {
   @override
   void initState() {
     super.initState();
+    // SharedPreferences: simpan score jika menjadi personal best.
     _saveFuture = HighScoreRepository.saveIfPersonalBest(
       username: widget.username,
       score: widget.score,
@@ -1183,6 +1225,7 @@ class _ResultScreenState extends State<ResultScreen> {
   }
 }
 
+// Notice hasil penyimpanan score pada result screen.
 class _ResultNotice extends StatelessWidget {
   const _ResultNotice({required this.icon, required this.message});
 
@@ -1218,6 +1261,7 @@ class _ResultNotice extends StatelessWidget {
   }
 }
 
+// High score screen: membaca dan menampilkan ranking pemain.
 class HighScoreScreen extends StatefulWidget {
   const HighScoreScreen({super.key});
 
@@ -1234,6 +1278,7 @@ class _HighScoreScreenState extends State<HighScoreScreen> {
     _scoresFuture = HighScoreRepository.loadTopScores();
   }
 
+  // Refresh data high score dari SharedPreferences.
   void _refresh() {
     setState(() {
       _scoresFuture = HighScoreRepository.loadTopScores();
@@ -1287,6 +1332,7 @@ class _HighScoreScreenState extends State<HighScoreScreen> {
   }
 }
 
+// Empty state jika belum ada data high score.
 class _EmptyScores extends StatelessWidget {
   const _EmptyScores({required this.onRefresh});
 
@@ -1328,6 +1374,7 @@ class _EmptyScores extends StatelessWidget {
   }
 }
 
+// Card untuk satu entry high score.
 class _ScoreCard extends StatelessWidget {
   const _ScoreCard({required this.entry, required this.rank});
 
@@ -1380,6 +1427,7 @@ class _ScoreCard extends StatelessWidget {
   }
 }
 
+// Model data high score.
 class ScoreEntry {
   const ScoreEntry({required this.username, required this.score});
 
@@ -1390,6 +1438,7 @@ class ScoreEntry {
     return <String, Object>{'username': username, 'score': score};
   }
 
+  // Parsing data JSON dari SharedPreferences menjadi ScoreEntry.
   static ScoreEntry? fromStorage(String raw) {
     try {
       final data = jsonDecode(raw) as Map<String, dynamic>;
@@ -1414,14 +1463,17 @@ class ScoreEntry {
   }
 }
 
+// Repository high score: semua akses SharedPreferences untuk skor ada di sini.
 class HighScoreRepository {
   const HighScoreRepository._();
 
+  // SharedPreferences: ambil top 3 score untuk ditampilkan.
   static Future<List<ScoreEntry>> loadTopScores() async {
     final scores = await _loadScores();
     return scores.take(3).toList();
   }
 
+  // SharedPreferences: simpan score hanya jika lebih tinggi dari score user itu.
   static Future<bool> saveIfPersonalBest({
     required String username,
     required int score,
@@ -1450,6 +1502,7 @@ class HighScoreRepository {
     return true;
   }
 
+  // SharedPreferences: baca semua score, parsing JSON, lalu sort descending.
   static Future<List<ScoreEntry>> _loadScores() async {
     final prefs = await SharedPreferences.getInstance();
     final storedValues =
@@ -1463,6 +1516,7 @@ class HighScoreRepository {
     return scores;
   }
 
+  // Sorting: score terbesar dulu, lalu username alfabetis jika score sama.
   static int _sortScores(ScoreEntry a, ScoreEntry b) {
     final scoreComparison = b.score.compareTo(a.score);
     if (scoreComparison != 0) {
@@ -1472,6 +1526,7 @@ class HighScoreRepository {
   }
 }
 
+// Gelar Italia berdasarkan jumlah jawaban benar.
 String titleForCorrectAnswers(int correctAnswers) {
   return switch (correctAnswers) {
     5 => "Maestro dell'Indovinello",
@@ -1483,6 +1538,7 @@ String titleForCorrectAnswers(int correctAnswers) {
   };
 }
 
+// Model data gambar game.
 class GameItem {
   const GameItem({
     required this.id,
@@ -1499,6 +1555,7 @@ class GameItem {
   final String assetPath;
 }
 
+// Master data semua asset gambar yang dipakai sebagai target dan opsi jawaban.
 const List<GameItem> kGameItems = [
   GameItem(
     id: 'pencil_red',
