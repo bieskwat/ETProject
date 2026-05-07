@@ -1,15 +1,30 @@
+// ============================================================
+// Bagian Import Library
+// ============================================================
+// dart:async dipakai untuk Timer.
+// dart:convert dipakai untuk encode/decode JSON high score.
+// dart:math dipakai untuk Random dan mencari nilai max score sebelumnya.
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
+// Flutter Material untuk semua komponen UI.
 import 'package:flutter/material.dart';
+
+// SharedPreferences untuk menyimpan username dan high score secara lokal.
 import 'package:shared_preferences/shared_preferences.dart';
 
+// ============================================================
+// Bagian Entry Point
+// ============================================================
 // Entry point aplikasi Flutter.
 void main() {
   runApp(const MyApp());
 }
 
+// ============================================================
+// Bagian Konfigurasi Global Aplikasi
+// ============================================================
 // Key SharedPreferences dan konfigurasi utama permainan.
 const String _usernameKey = 'memorimage_username';
 const String _highScoresKey = 'memorimage_high_scores';
@@ -17,6 +32,9 @@ const int _roundsPerGame = 5;
 const int _memorizeSeconds = 3;
 const int _answerSeconds = 30;
 
+// ============================================================
+// Bagian Root App dan Session User
+// ============================================================
 // Root aplikasi: mengatur session user dan screen awal.
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -79,6 +97,10 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    // Routing awal:
+    // 1. LoadingScreen saat app membaca storage.
+    // 2. LoginScreen jika belum ada username.
+    // 3. MainMenuScreen jika username sudah tersimpan.
     return MaterialApp(
       title: 'Memorimage',
       debugShowCheckedModeBanner: false,
@@ -92,6 +114,9 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
+// ============================================================
+// Bagian Theme / Tampilan Global
+// ============================================================
 // Theme aplikasi: warna, AppBar, button, dan input field.
 ThemeData _buildTheme() {
   final colorScheme =
@@ -139,6 +164,9 @@ ThemeData _buildTheme() {
   );
 }
 
+// ============================================================
+// Bagian Loading Screen
+// ============================================================
 // Loading screen sementara saat app membaca session dari storage.
 class LoadingScreen extends StatelessWidget {
   const LoadingScreen({super.key});
@@ -149,6 +177,9 @@ class LoadingScreen extends StatelessWidget {
   }
 }
 
+// ============================================================
+// Bagian Login Screen
+// ============================================================
 // Login screen: meminta username sebelum user masuk ke main menu.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({required this.onLogin, super.key});
@@ -198,6 +229,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       body: SafeArea(
         child: Center(
+          // SingleChildScrollView membuat login tetap aman di layar kecil.
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
@@ -209,6 +241,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(24),
+                  // Form dipakai agar username bisa divalidasi sebelum disimpan.
                   child: Form(
                     key: _formKey,
                     child: Column(
@@ -239,6 +272,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           style: Theme.of(context).textTheme.bodyMedium,
                         ),
                         const SizedBox(height: 24),
+                        // Input username: wajib diisi, lalu disimpan ke storage.
                         TextFormField(
                           controller: _usernameController,
                           textInputAction: TextInputAction.done,
@@ -255,6 +289,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           onFieldSubmitted: (_) => _submit(),
                         ),
                         const SizedBox(height: 18),
+                        // Tombol login berubah menjadi loading saat proses simpan.
                         FilledButton.icon(
                           onPressed: _isSaving ? null : _submit,
                           icon: _isSaving
@@ -280,6 +315,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
+// ============================================================
+// Bagian Main Menu
+// ============================================================
 // Main menu: halaman utama setelah login.
 class MainMenuScreen extends StatelessWidget {
   const MainMenuScreen({
@@ -295,6 +333,7 @@ class MainMenuScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Memorimage')),
+      // Drawer berisi username, menu high score, dan logout.
       drawer: _MainDrawer(username: username, onLogout: onLogout),
       body: SafeArea(
         child: Center(
@@ -352,6 +391,7 @@ class MainMenuScreen extends StatelessWidget {
                   body: 'Skor terbaik tiap pemain disimpan otomatis.',
                 ),
                 const SizedBox(height: 26),
+                // Tombol mulai game: membuka GameScreen dengan username aktif.
                 FilledButton.icon(
                   onPressed: () {
                     Navigator.of(context).push(
@@ -372,6 +412,9 @@ class MainMenuScreen extends StatelessWidget {
   }
 }
 
+// ============================================================
+// Bagian Drawer Menu
+// ============================================================
 // Drawer: menampilkan username, high score, dan logout.
 class _MainDrawer extends StatelessWidget {
   const _MainDrawer({required this.username, required this.onLogout});
@@ -421,6 +464,7 @@ class _MainDrawer extends StatelessWidget {
             leading: const Icon(Icons.leaderboard),
             title: const Text('High Score'),
             onTap: () {
+              // Tutup drawer dulu, lalu masuk ke halaman High Score.
               Navigator.pop(context);
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
@@ -433,6 +477,7 @@ class _MainDrawer extends StatelessWidget {
             leading: const Icon(Icons.logout),
             title: const Text('Log Out'),
             onTap: () async {
+              // Logout menghapus session username dari SharedPreferences.
               Navigator.pop(context);
               await onLogout();
             },
@@ -443,6 +488,9 @@ class _MainDrawer extends StatelessWidget {
   }
 }
 
+// ============================================================
+// Bagian Komponen Info Main Menu
+// ============================================================
 // Komponen informasi kecil di main menu.
 class _InfoStrip extends StatelessWidget {
   const _InfoStrip({
@@ -490,6 +538,9 @@ class _InfoStrip extends StatelessWidget {
   }
 }
 
+// ============================================================
+// Bagian Game Screen dan Game Logic
+// ============================================================
 // GameScreen: mengatur seluruh alur permainan, timer, soal, dan skor.
 class GameScreen extends StatefulWidget {
   const GameScreen({required this.username, super.key});
@@ -656,6 +707,7 @@ class _GameScreenState extends State<GameScreen> {
       _answerLocked = true;
       _selectedOptionId = option.id;
       if (isCorrect) {
+        // Scoring: jawaban benar mendapat poin sebesar sisa detik.
         _score += _answerSecondsLeft;
         _correctAnswers += 1;
       }
@@ -717,6 +769,7 @@ class _GameScreenState extends State<GameScreen> {
             constraints: const BoxConstraints(maxWidth: 860),
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 350),
+              // AnimatedSwitcher memberi transisi saat phase game berubah.
               child: switch (_phase) {
                 GamePhase.preparing => const Center(
                   key: ValueKey('preparing'),
@@ -779,6 +832,7 @@ class _GameScreenState extends State<GameScreen> {
   Widget _buildQuestionView(BuildContext context) {
     final target = _targets[_questionIndex];
 
+    // LayoutBuilder dipakai agar jumlah kolom opsi responsif.
     return LayoutBuilder(
       key: const ValueKey('question'),
       builder: (context, constraints) {
@@ -815,6 +869,7 @@ class _GameScreenState extends State<GameScreen> {
               ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 18),
+            // Grid opsi jawaban: 4 kolom di layar lebar, 2 kolom di layar kecil.
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -843,6 +898,9 @@ class _GameScreenState extends State<GameScreen> {
   }
 }
 
+// ============================================================
+// Bagian Komponen UI Reusable Untuk Game
+// ============================================================
 // Status bar game: phase, progress, dan skor.
 class _GameStatusBar extends StatelessWidget {
   const _GameStatusBar({
@@ -1032,6 +1090,8 @@ class _OptionTile extends StatelessWidget {
     final IconData? badgeIcon;
     final Color? badgeColor;
 
+    // Warna dan icon feedback:
+    // hijau untuk jawaban benar, merah untuk pilihan salah.
     if (isLocked && isCorrectAnswer) {
       borderColor = const Color(0xFF16A34A);
       badgeIcon = Icons.check_circle;
@@ -1090,6 +1150,9 @@ class _OptionTile extends StatelessWidget {
   }
 }
 
+// ============================================================
+// Bagian Result Screen
+// ============================================================
 // Result screen: menampilkan skor, gelar, dan tombol navigasi setelah game.
 class ResultScreen extends StatefulWidget {
   const ResultScreen({
@@ -1149,6 +1212,7 @@ class _ResultScreenState extends State<ResultScreen> {
                   duration: const Duration(milliseconds: 850),
                   curve: Curves.easeOutCubic,
                   tween: Tween<double>(begin: 0, end: widget.score.toDouble()),
+                  // Animasi angka score dari 0 ke score akhir.
                   builder: (context, value, child) {
                     return Text(
                       '${value.round()} poin',
@@ -1167,6 +1231,7 @@ class _ResultScreenState extends State<ResultScreen> {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 16),
+                // FutureBuilder menunggu proses simpan high score selesai.
                 FutureBuilder<bool>(
                   future: _saveFuture,
                   builder: (context, snapshot) {
@@ -1185,6 +1250,7 @@ class _ResultScreenState extends State<ResultScreen> {
                   },
                 ),
                 const SizedBox(height: 24),
+                // Play Again mengganti ResultScreen dengan GameScreen baru.
                 FilledButton.icon(
                   onPressed: () {
                     Navigator.of(context).pushReplacement(
@@ -1197,6 +1263,7 @@ class _ResultScreenState extends State<ResultScreen> {
                   label: const Text('Play Again'),
                 ),
                 const SizedBox(height: 12),
+                // High Scores membuka leaderboard lokal.
                 OutlinedButton.icon(
                   onPressed: () {
                     Navigator.of(context).push(
@@ -1209,6 +1276,7 @@ class _ResultScreenState extends State<ResultScreen> {
                   label: const Text('High Scores'),
                 ),
                 const SizedBox(height: 12),
+                // Main Menu kembali ke route pertama.
                 OutlinedButton.icon(
                   onPressed: () {
                     Navigator.of(context).popUntil((route) => route.isFirst);
@@ -1225,6 +1293,9 @@ class _ResultScreenState extends State<ResultScreen> {
   }
 }
 
+// ============================================================
+// Bagian Result Notice
+// ============================================================
 // Notice hasil penyimpanan score pada result screen.
 class _ResultNotice extends StatelessWidget {
   const _ResultNotice({required this.icon, required this.message});
@@ -1261,6 +1332,9 @@ class _ResultNotice extends StatelessWidget {
   }
 }
 
+// ============================================================
+// Bagian High Score Screen
+// ============================================================
 // High score screen: membaca dan menampilkan ranking pemain.
 class HighScoreScreen extends StatefulWidget {
   const HighScoreScreen({super.key});
@@ -1305,15 +1379,18 @@ class _HighScoreScreenState extends State<HighScoreScreen> {
             child: FutureBuilder<List<ScoreEntry>>(
               future: _scoresFuture,
               builder: (context, snapshot) {
+                // Loading state saat data high score sedang dibaca.
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
                 final scores = snapshot.data ?? const <ScoreEntry>[];
+                // Empty state jika belum ada pemain yang menyimpan score.
                 if (scores.isEmpty) {
                   return _EmptyScores(onRefresh: _refresh);
                 }
 
+                // List ranking high score.
                 return ListView.separated(
                   padding: const EdgeInsets.all(24),
                   itemBuilder: (context, index) {
@@ -1332,6 +1409,9 @@ class _HighScoreScreenState extends State<HighScoreScreen> {
   }
 }
 
+// ============================================================
+// Bagian Empty State High Score
+// ============================================================
 // Empty state jika belum ada data high score.
 class _EmptyScores extends StatelessWidget {
   const _EmptyScores({required this.onRefresh});
@@ -1374,6 +1454,9 @@ class _EmptyScores extends StatelessWidget {
   }
 }
 
+// ============================================================
+// Bagian Card High Score
+// ============================================================
 // Card untuk satu entry high score.
 class _ScoreCard extends StatelessWidget {
   const _ScoreCard({required this.entry, required this.rank});
@@ -1427,6 +1510,9 @@ class _ScoreCard extends StatelessWidget {
   }
 }
 
+// ============================================================
+// Bagian Model High Score
+// ============================================================
 // Model data high score.
 class ScoreEntry {
   const ScoreEntry({required this.username, required this.score});
@@ -1434,6 +1520,7 @@ class ScoreEntry {
   final String username;
   final int score;
 
+  // Mengubah object ScoreEntry menjadi Map agar bisa di-JSON-kan.
   Map<String, Object> toJson() {
     return <String, Object>{'username': username, 'score': score};
   }
@@ -1463,6 +1550,9 @@ class ScoreEntry {
   }
 }
 
+// ============================================================
+// Bagian Repository High Score / SharedPreferences Score
+// ============================================================
 // Repository high score: semua akses SharedPreferences untuk skor ada di sini.
 class HighScoreRepository {
   const HighScoreRepository._();
@@ -1485,15 +1575,18 @@ class HighScoreRepository {
         .map((entry) => entry.score)
         .fold<int>(-1, max);
 
+    // Jika score baru tidak lebih tinggi, data tidak perlu ditulis ulang.
     if (score <= previousBest) {
       return false;
     }
 
+    // Hapus score lama user yang sama, lalu masukkan personal best terbaru.
     final nextScores =
         scores.where((entry) => entry.username != username).toList()
           ..add(ScoreEntry(username: username, score: score))
           ..sort(_sortScores);
 
+    // Storage dibatasi 10 score terbaik agar data lokal tetap ringkas.
     final encoded = nextScores
         .take(10)
         .map((entry) => jsonEncode(entry.toJson()))
@@ -1526,6 +1619,9 @@ class HighScoreRepository {
   }
 }
 
+// ============================================================
+// Bagian Gelar Result
+// ============================================================
 // Gelar Italia berdasarkan jumlah jawaban benar.
 String titleForCorrectAnswers(int correctAnswers) {
   return switch (correctAnswers) {
@@ -1538,6 +1634,9 @@ String titleForCorrectAnswers(int correctAnswers) {
   };
 }
 
+// ============================================================
+// Bagian Model Data Gambar Game
+// ============================================================
 // Model data gambar game.
 class GameItem {
   const GameItem({
@@ -1555,6 +1654,9 @@ class GameItem {
   final String assetPath;
 }
 
+// ============================================================
+// Bagian Master Data Asset Game
+// ============================================================
 // Master data semua asset gambar yang dipakai sebagai target dan opsi jawaban.
 const List<GameItem> kGameItems = [
   GameItem(
