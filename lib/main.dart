@@ -1390,15 +1390,70 @@ class _HighScoreScreenState extends State<HighScoreScreen> {
                   return _EmptyScores(onRefresh: _refresh);
                 }
 
-                // List ranking high score.
-                return ListView.separated(
+                // List ranking high score + ucapan selamat untuk rank 1.
+                return ListView(
                   padding: const EdgeInsets.all(24),
-                  itemBuilder: (context, index) {
-                    return _ScoreCard(entry: scores[index], rank: index + 1);
-                  },
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 12),
-                  itemCount: scores.length,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFE0E7EA)),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x12000000),
+                            blurRadius: 10,
+                            offset: Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.emoji_events,
+                            size: 42,
+                            color: Theme.of(context).colorScheme.secondary,
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Selamat, ${scores.first.username}!',
+                                  style: Theme.of(context).textTheme.titleLarge
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w900,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                      ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Kamu berada di peringkat pertama dengan ${scores.first.score} poin.',
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    ...List.generate(scores.length, (index) {
+                      return Padding(
+                        padding: EdgeInsets.only(
+                          bottom: index == scores.length - 1 ? 0 : 12,
+                        ),
+                        child: _ScoreCard(
+                          entry: scores[index],
+                          rank: index + 1,
+                        ),
+                      );
+                    }),
+                  ],
                 );
               },
             ),
